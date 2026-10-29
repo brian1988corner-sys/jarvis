@@ -2,29 +2,40 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>J.A.R.V.I.S.</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #030812; color: #00d2ff; display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: 100vh; padding: 40px 20px; overflow: hidden; }
+    body { 
+      background-color: #030812; 
+      color: #00d2ff; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: space-between; 
+      min-height: 100vh;
+      min-height: 100dvh; 
+      padding: 35px 20px calc(25px + env(safe-area-inset-bottom)); 
+      overflow: hidden; 
+    }
     .hud-header { text-align: center; }
     .hud-title { font-size: 26px; font-weight: 800; letter-spacing: 4px; text-shadow: 0 0 15px rgba(0,210,255,0.8); }
     .hud-status { font-size: 11px; letter-spacing: 2px; color: #00ff88; margin-top: 5px; }
-    .arc-reactor-container { position: relative; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; }
+    .arc-reactor-container { position: relative; width: 190px; height: 190px; display: flex; align-items: center; justify-content: center; }
     .ring { position: absolute; border-radius: 50%; border: 2px dashed rgba(0,210,255,0.4); }
-    .ring-outer { width: 190px; height: 190px; animation: spin 20s linear infinite; }
-    .ring-inner { width: 145px; height: 145px; border-style: solid; border-color: rgba(0,210,255,0.2) transparent; animation: spin-rev 10s linear infinite; }
-    .core { width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, #00d2ff 0%, #030812 70%); box-shadow: 0 0 30px #00d2ff; display: flex; align-items: center; justify-content: center; }
+    .ring-outer { width: 180px; height: 180px; animation: spin 20s linear infinite; }
+    .ring-inner { width: 135px; height: 135px; border-style: solid; border-color: rgba(0,210,255,0.2) transparent; animation: spin-rev 10s linear infinite; }
+    .core { width: 85px; height: 85px; border-radius: 50%; background: radial-gradient(circle, #00d2ff 0%, #030812 70%); box-shadow: 0 0 30px #00d2ff; display: flex; align-items: center; justify-content: center; }
     .listening .core { animation: pulse 1s infinite alternate; background: radial-gradient(circle, #ff0055 0%, #030812 70%); box-shadow: 0 0 35px #ff0055; }
-    .response-box { width: 100%; max-height: 150px; overflow-y: auto; background: rgba(0, 210, 255, 0.05); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.4; color: #e0f7ff; text-align: center; }
-    .controls { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
-    .btn-mic { width: 70px; height: 70px; border-radius: 50%; background: #001f3f; border: 2px solid #00d2ff; color: #00d2ff; font-size: 26px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(0,210,255,0.4); cursor: pointer; }
+    .response-box { width: 100%; max-height: 140px; overflow-y: auto; background: rgba(0, 210, 255, 0.05); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.4; color: #e0f7ff; text-align: center; }
+    .controls { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+    .btn-mic { width: 68px; height: 68px; border-radius: 50%; background: #001f3f; border: 2px solid #00d2ff; color: #00d2ff; font-size: 26px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(0,210,255,0.4); cursor: pointer; }
     .text-row { display: flex; width: 100%; gap: 8px; }
-    .input-text { flex: 1; background: rgba(0,210,255,0.1); border: 1px solid rgba(0,210,255,0.3); border-radius: 8px; color: #fff; padding: 8px 12px; font-size: 14px; outline: none; }
-    .btn-send { background: #00d2ff; border: none; border-radius: 8px; color: #030812; font-weight: bold; padding: 0 16px; font-size: 14px; }
-    .btn-settings { background: transparent; border: none; color: rgba(0,210,255,0.5); font-size: 11px; letter-spacing: 1px; }
+    .input-text { flex: 1; background: rgba(0,210,255,0.1); border: 1px solid rgba(0,210,255,0.3); border-radius: 8px; color: #fff; padding: 10px 12px; font-size: 15px; outline: none; }
+    .btn-send { background: #00d2ff; border: none; border-radius: 8px; color: #030812; font-weight: bold; padding: 0 16px; font-size: 14px; cursor: pointer; }
+    .btn-settings { background: transparent; border: none; color: rgba(0,210,255,0.5); font-size: 11px; letter-spacing: 1px; padding: 4px; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     @keyframes spin-rev { 100% { transform: rotate(-360deg); } }
     @keyframes pulse { 0% { transform: scale(0.95); } 100% { transform: scale(1.1); } }
@@ -42,12 +53,12 @@
     <div class="core"></div>
   </div>
 
-  <div class="response-box" id="output">Tippe auf das Mikrofon oder schreibe einen Befehl, Sir.</div>
+  <div class="response-box" id="output">System bereit. Sprich mit mir oder schreibe einen Befehl, Sir.</div>
 
   <div class="controls">
     <button class="btn-mic" id="micBtn">🎙️</button>
     <div class="text-row">
-      <input type="text" id="textPrompt" class="input-text" placeholder="Befehl tippen...">
+      <input type="text" id="textPrompt" class="input-text" placeholder="Befehl an Jarvis...">
       <button class="btn-send" onclick="sendTypedText()">SEND</button>
     </div>
     <button class="btn-settings" onclick="setApiKey()">API-KEY ÄNDERN</button>
@@ -84,7 +95,7 @@
         document.getElementById('output').innerText = `Du: "${text}"`;
         await askJarvis(text);
       };
-      recognition.onerror = (e) => {
+      recognition.onerror = () => {
         document.getElementById('status').innerText = 'BEREIT';
       };
     }
@@ -92,7 +103,7 @@
     document.getElementById('micBtn').addEventListener('click', () => {
       if (!apiKey) return setApiKey();
       if (!recognition) {
-        alert('Spracheingabe auf diesem Weg nicht verfügbar. Nutze bitte das Textfeld unten!');
+        alert('Spracheingabe wird im Browser blockiert. Bitte nutze das Textfeld unten!');
         return;
       }
       try { recognition.start(); } catch(e) { recognition.stop(); }
@@ -115,41 +126,44 @@
 
       if (!apiKey) return setApiKey();
 
-      const systemPrompt = "Du bist J.A.R.V.I.S., ein hochintelligenter KI-Assistent. Antworte auf Deutsch, präzise und nenne mich gelegentlich Sir.";
+      const systemPrompt = "Du bist J.A.R.V.I.S., ein hochintelligenter persönlicher KI-Assistent. Antworte immer auf Deutsch, professionell, prägnant und sprich den Nutzer gelegentlich mit Sir an.";
+      
+      // Auto-Erkennung: Wir testen die aktuellen Gemini-Modelle automatisch durch
+      const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
+      let lastError = null;
 
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
-          })
-        });
+      for (const model of candidateModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
+            })
+          });
 
-        const data = await response.json();
+          const data = await response.json();
 
-        if (data.error) {
-          output.innerText = `Google-Fehler (${data.error.code}): ${data.error.message}`;
-          status.innerText = 'KEY PRÜFEN';
-          return;
+          if (data.error) {
+            lastError = data.error.message;
+            continue; // Probiere nächstes Modell
+          }
+
+          if (data.candidates && data.candidates.length > 0) {
+            const reply = data.candidates[0].content.parts[0].text;
+            output.innerText = reply;
+            status.innerText = 'SYSTEM ONLINE // BEREIT';
+            speak(reply);
+            return; // Erfolgreich geantwortet!
+          }
+        } catch (err) {
+          lastError = err.message;
         }
-
-        if (!data.candidates || data.candidates.length === 0) {
-          output.innerText = "Keine Antwort von Gemini erhalten.";
-          status.innerText = 'BEREIT';
-          return;
-        }
-
-        const reply = data.candidates[0].content.parts[0].text;
-        output.innerText = reply;
-        status.innerText = 'SYSTEM ONLINE // BEREIT';
-        speak(reply);
-
-      } catch (err) {
-        output.innerText = 'Netzwerkfehler: ' + err.message;
-        status.innerText = 'FEHLER';
       }
+
+      output.innerText = 'Fehler: ' + (lastError || 'Keine Antwort erhalten.');
+      status.innerText = 'FEHLER';
     }
 
     function speak(text) {
