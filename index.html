@@ -12,16 +12,19 @@
     .hud-header { text-align: center; }
     .hud-title { font-size: 26px; font-weight: 800; letter-spacing: 4px; text-shadow: 0 0 15px rgba(0,210,255,0.8); }
     .hud-status { font-size: 11px; letter-spacing: 2px; color: #00ff88; margin-top: 5px; }
-    .arc-reactor-container { position: relative; width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
+    .arc-reactor-container { position: relative; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; }
     .ring { position: absolute; border-radius: 50%; border: 2px dashed rgba(0,210,255,0.4); }
-    .ring-outer { width: 210px; height: 210px; animation: spin 20s linear infinite; }
-    .ring-inner { width: 160px; height: 160px; border-style: solid; border-color: rgba(0,210,255,0.2) transparent; animation: spin-rev 10s linear infinite; }
-    .core { width: 100px; height: 100px; border-radius: 50%; background: radial-gradient(circle, #00d2ff 0%, #030812 70%); box-shadow: 0 0 30px #00d2ff; display: flex; align-items: center; justify-content: center; }
+    .ring-outer { width: 190px; height: 190px; animation: spin 20s linear infinite; }
+    .ring-inner { width: 145px; height: 145px; border-style: solid; border-color: rgba(0,210,255,0.2) transparent; animation: spin-rev 10s linear infinite; }
+    .core { width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, #00d2ff 0%, #030812 70%); box-shadow: 0 0 30px #00d2ff; display: flex; align-items: center; justify-content: center; }
     .listening .core { animation: pulse 1s infinite alternate; background: radial-gradient(circle, #ff0055 0%, #030812 70%); box-shadow: 0 0 35px #ff0055; }
-    .response-box { width: 100%; max-height: 140px; overflow-y: auto; background: rgba(0, 210, 255, 0.05); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.4; color: #e0f7ff; text-align: center; }
-    .controls { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; }
-    .btn-mic { width: 75px; height: 75px; border-radius: 50%; background: #001f3f; border: 2px solid #00d2ff; color: #00d2ff; font-size: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(0,210,255,0.4); cursor: pointer; }
-    .btn-settings { background: transparent; border: none; color: rgba(0,210,255,0.5); font-size: 12px; letter-spacing: 1px; }
+    .response-box { width: 100%; max-height: 150px; overflow-y: auto; background: rgba(0, 210, 255, 0.05); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.4; color: #e0f7ff; text-align: center; }
+    .controls { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+    .btn-mic { width: 70px; height: 70px; border-radius: 50%; background: #001f3f; border: 2px solid #00d2ff; color: #00d2ff; font-size: 26px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(0,210,255,0.4); cursor: pointer; }
+    .text-row { display: flex; width: 100%; gap: 8px; }
+    .input-text { flex: 1; background: rgba(0,210,255,0.1); border: 1px solid rgba(0,210,255,0.3); border-radius: 8px; color: #fff; padding: 8px 12px; font-size: 14px; outline: none; }
+    .btn-send { background: #00d2ff; border: none; border-radius: 8px; color: #030812; font-weight: bold; padding: 0 16px; font-size: 14px; }
+    .btn-settings { background: transparent; border: none; color: rgba(0,210,255,0.5); font-size: 11px; letter-spacing: 1px; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     @keyframes spin-rev { 100% { transform: rotate(-360deg); } }
     @keyframes pulse { 0% { transform: scale(0.95); } 100% { transform: scale(1.1); } }
@@ -39,27 +42,30 @@
     <div class="core"></div>
   </div>
 
-  <div class="response-box" id="output">Tippe auf das Mikrofon und sprich mit mir, Sir.</div>
+  <div class="response-box" id="output">Tippe auf das Mikrofon oder schreibe einen Befehl, Sir.</div>
 
   <div class="controls">
     <button class="btn-mic" id="micBtn">🎙️</button>
+    <div class="text-row">
+      <input type="text" id="textPrompt" class="input-text" placeholder="Befehl tippen...">
+      <button class="btn-send" onclick="sendTypedText()">SEND</button>
+    </div>
     <button class="btn-settings" onclick="setApiKey()">API-KEY ÄNDERN</button>
   </div>
 
   <script>
-    let apiKey = localStorage.getItem('gemini_api_key') || '';
-    let memory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
+    let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
 
     function setApiKey() {
       const key = prompt('Bitte gib deinen Gemini API-Key ein:', apiKey);
-      if (key) {
+      if (key !== null) {
         apiKey = key.trim();
         localStorage.setItem('gemini_api_key', apiKey);
         alert('Key gespeichert!');
       }
     }
 
-    if (!apiKey) setTimeout(setApiKey, 500);
+    if (!apiKey) setTimeout(setApiKey, 600);
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
@@ -72,51 +78,77 @@
       };
       recognition.onend = () => {
         document.getElementById('reactor').classList.remove('listening');
-        document.getElementById('status').innerText = 'VERARBEITE...';
       };
       recognition.onresult = async (event) => {
         const text = event.results[0][0].transcript;
         document.getElementById('output').innerText = `Du: "${text}"`;
         await askJarvis(text);
       };
-    } else {
-      alert('Spracherkennung wird im Browser nicht unterstützt. Bitte als PWA zum Homescreen hinzufügen!');
+      recognition.onerror = (e) => {
+        document.getElementById('status').innerText = 'BEREIT';
+      };
     }
 
     document.getElementById('micBtn').addEventListener('click', () => {
       if (!apiKey) return setApiKey();
+      if (!recognition) {
+        alert('Spracheingabe auf diesem Weg nicht verfügbar. Nutze bitte das Textfeld unten!');
+        return;
+      }
       try { recognition.start(); } catch(e) { recognition.stop(); }
     });
+
+    function sendTypedText() {
+      const input = document.getElementById('textPrompt');
+      const val = input.value.trim();
+      if (val) {
+        document.getElementById('output').innerText = `Du: "${val}"`;
+        askJarvis(val);
+        input.value = '';
+      }
+    }
 
     async function askJarvis(promptText) {
       const status = document.getElementById('status');
       const output = document.getElementById('output');
-      
-      const systemInstruction = `Du bist J.A.R.V.I.S., ein loyaler, hochintelligenter persönlicher Assistent. Antworte präzise, professionell auf Deutsch und sprich den Nutzer mit "Sir" an. Halte Antworten für die Sprachausgabe mundgerecht und kurz. Dein bisheriges Gedächtnis: ${JSON.stringify(memory)}`;
+      status.innerText = 'VERARBEITE...';
+
+      if (!apiKey) return setApiKey();
+
+      const systemPrompt = "Du bist J.A.R.V.I.S., ein hochintelligenter KI-Assistent. Antworte auf Deutsch, präzise und nenne mich gelegentlich Sir.";
 
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemInstruction}\n\nNutzer: ${promptText}` }] }]
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
           })
         });
 
         const data = await response.json();
+
+        if (data.error) {
+          output.innerText = `Google-Fehler (${data.error.code}): ${data.error.message}`;
+          status.innerText = 'KEY PRÜFEN';
+          return;
+        }
+
+        if (!data.candidates || data.candidates.length === 0) {
+          output.innerText = "Keine Antwort von Gemini erhalten.";
+          status.innerText = 'BEREIT';
+          return;
+        }
+
         const reply = data.candidates[0].content.parts[0].text;
         output.innerText = reply;
         status.innerText = 'SYSTEM ONLINE // BEREIT';
-
-        if (promptText.toLowerCase().includes('merke') || promptText.toLowerCase().includes('erinnere')) {
-          memory.push({ date: new Date().toLocaleDateString(), note: promptText });
-          localStorage.setItem('jarvis_memory', JSON.stringify(memory));
-        }
-
         speak(reply);
+
       } catch (err) {
-        output.innerText = 'Fehler: ' + err.message;
-        status.innerText = 'VERBINDUNGSFEHLER';
+        output.innerText = 'Netzwerkfehler: ' + err.message;
+        status.innerText = 'FEHLER';
       }
     }
 
