@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>J.A.R.V.I.S. 2.0</title>
+  <title>J.A.R.V.I.S. 2.5</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { 
@@ -43,7 +43,7 @@
 </head>
 <body>
   <div class="hud-header">
-    <div class="hud-title">J.A.R.V.I.S. 2.0</div>
+    <div class="hud-title">J.A.R.V.I.S. 2.5</div>
     <div class="hud-status" id="status">SYSTEM ONLINE // BEREIT</div>
   </div>
 
@@ -53,7 +53,7 @@
     <div class="core"></div>
   </div>
 
-  <div class="response-box" id="output">System bereit, Sir.</div>
+  <div class="response-box" id="output">Bereit für Ihren Befehl, Sir.</div>
 
   <div class="controls">
     <button class="btn-mic" id="micBtn">🎙️</button>
@@ -66,6 +66,7 @@
 
   <script>
     let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
+    let bestModel = localStorage.getItem('jarvis_best_model') || 'gemini-2.5-flash';
 
     function setApiKey() {
       const key = prompt('Bitte gib deinen Gemini API-Key ein:', apiKey);
@@ -83,6 +84,7 @@
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
       recognition.lang = 'de-DE';
+      recognition.interimResults = false;
       recognition.onstart = () => {
         document.getElementById('reactor').classList.add('listening');
         document.getElementById('status').innerText = 'ICH HÖRE ZU...';
@@ -102,10 +104,7 @@
 
     document.getElementById('micBtn').addEventListener('click', () => {
       if (!apiKey) return setApiKey();
-      if (!recognition) {
-        alert('Spracheingabe wird blockiert. Nutze das Textfeld!');
-        return;
-      }
+      if (!recognition) return alert('Spracheingabe nicht verfügbar. Bitte tippen!');
       try { recognition.start(); } catch(e) { recognition.stop(); }
     });
 
@@ -122,18 +121,18 @@
     async function askJarvis(promptText) {
       const status = document.getElementById('status');
       const output = document.getElementById('output');
-      status.innerText = 'VERARBEITE...';
+      status.innerText = 'DENKE NACH...';
 
       if (!apiKey) return setApiKey();
 
-      const systemPrompt = "Du bist J.A.R.V.I.S., ein hochintelligenter, loyaler KI-Assistent. Antworte kurz, prägnant auf Deutsch und nenne mich gelegentlich Sir.";
+      // Strikt kurze und saubere Antworten für maximale Sprachgeschwindigkeit
+      const systemPrompt = "Du bist J.A.R.V.I.S., der hochentwickelte KI-Assistent. Antworte immer auf Deutsch, professionell, charmant und in maximal 1 bis 2 kurzen Sätzen. Sprich mich gelegentlich mit Sir an. Verwende absolut KEINE Formatierungszeichen wie Sternchen (*), Rautenzeichen (#) oder Aufzählungen, da deine Antworten direkt laut vorgelesen werden.";
 
-      // Aktuelle offizielle Google-Modelle (2026)
-      const currentModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
-      let successfulReply = null;
-      let lastErrMsg = '';
+      const modelsToTry = [bestModel, 'gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+      // Dopplungen entfernen
+      const uniqueModels = [...new Set(modelsToTry)];
 
-      for (const m of currentModels) {
+      for (const m of uniqueModels) {
         try {
           const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
           const response = await fetch(url, {
@@ -147,35 +146,57 @@
           const data = await response.json();
 
           if (data.candidates && data.candidates.length > 0) {
-            successfulReply = data.candidates[0].content.parts[0].text;
-            break;
-          } else if (data.error) {
-            lastErrMsg = data.error.message;
+            const reply = data.candidates[0].content.parts[0].text;
+            // Erfolgreiches Modell für immer abspeichern -> ab jetzt 0 Sek Verzögerung!
+            if (bestModel !== m) {
+              bestModel = m;
+              localStorage.setItem('jarvis_best_model', m);
+            }
+            output.innerText = reply;
+            status.innerText = 'BEREIT';
+            speakCleanText(reply);
+            return;
           }
         } catch (e) {
-          lastErrMsg = e.message;
+          // Nächstes probieren falls nötig
         }
       }
 
-      if (successfulReply) {
-        output.innerText = successfulReply;
-        status.innerText = 'SYSTEM ONLINE // BEREIT';
-        speak(successfulReply);
-      } else {
-        output.innerText = 'Fehler: ' + lastErrMsg;
-        status.innerText = 'FEHLER';
-      }
+      output.innerText = 'Verbindung fehlgeschlagen.';
+      status.innerText = 'FEHLER';
     }
 
-    function speak(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'de-DE';
-        utterance.pitch = 0.9;
-        utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
-      }
+    function speakCleanText(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+
+      // Sonderzeichen und Markdown-Sterne entfernen, damit die Stimme flüssig spricht
+      const clean = text.replace(/[*#_~`>]/g, '').trim();
+
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = 'de-DE';
+      utterance.rate = 1.05; // Natürlicheres Tempo
+      utterance.pitch = 1.0;
+
+      // Sucht gezielt nach hochwertigen / Siri-Stimmen auf dem iPhone
+      const voices = window.speechSynthesis.getVoices();
+      const germanVoices = voices.filter(v => v.lang.startsWith('de'));
+      
+      const premiumVoice = germanVoices.find(v => 
+        v.name.includes('Siri') || 
+        v.name.includes('Enhanced') || 
+        v.name.includes('Premium') ||
+        v.name.includes('Anna')
+      ) || germanVoices[0];
+
+      if (premiumVoice) utterance.voice = premiumVoice;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Stimmen auf iOS vorladen
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
   </script>
 </body>
