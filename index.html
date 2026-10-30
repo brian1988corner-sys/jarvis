@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>J.A.R.V.I.S.</title>
+  <title>J.A.R.V.I.S. 2.0</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { 
@@ -21,7 +21,7 @@
       overflow: hidden; 
     }
     .hud-header { text-align: center; }
-    .hud-title { font-size: 26px; font-weight: 800; letter-spacing: 4px; text-shadow: 0 0 15px rgba(0,210,255,0.8); }
+    .hud-title { font-size: 24px; font-weight: 800; letter-spacing: 4px; text-shadow: 0 0 15px rgba(0,210,255,0.8); }
     .hud-status { font-size: 11px; letter-spacing: 2px; color: #00ff88; margin-top: 5px; }
     .arc-reactor-container { position: relative; width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; }
     .ring { position: absolute; border-radius: 50%; border: 2px dashed rgba(0,210,255,0.4); }
@@ -43,8 +43,8 @@
 </head>
 <body>
   <div class="hud-header">
-    <div class="hud-title">J.A.R.V.I.S.</div>
-    <div class="hud-status" id="status">INITIALISIERE...</div>
+    <div class="hud-title">J.A.R.V.I.S. 2.0</div>
+    <div class="hud-status" id="status">SYSTEM ONLINE // BEREIT</div>
   </div>
 
   <div class="arc-reactor-container" id="reactor">
@@ -53,7 +53,7 @@
     <div class="core"></div>
   </div>
 
-  <div class="response-box" id="output">Verbinde Gehirn mit Google...</div>
+  <div class="response-box" id="output">System bereit, Sir.</div>
 
   <div class="controls">
     <button class="btn-mic" id="micBtn">🎙️</button>
@@ -66,43 +66,17 @@
 
   <script>
     let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
-    let detectedModel = null;
 
     function setApiKey() {
       const key = prompt('Bitte gib deinen Gemini API-Key ein:', apiKey);
       if (key !== null) {
         apiKey = key.trim();
         localStorage.setItem('gemini_api_key', apiKey);
-        initBrain();
+        alert('Key gespeichert!');
       }
     }
 
     if (!apiKey) setTimeout(setApiKey, 600);
-    else initBrain();
-
-    // Fragt Google direkt: Welche Modelle darf dieser Key nutzen?
-    async function initBrain() {
-      const status = document.getElementById('status');
-      const output = document.getElementById('output');
-      if (!apiKey) return;
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const data = await res.json();
-        if (data.models && data.models.length > 0) {
-          const valid = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
-          const chosen = valid.find(m => m.name.includes('flash')) || valid[0];
-          detectedModel = chosen.name;
-          status.innerText = 'ONLINE // ' + detectedModel.replace('models/', '').toUpperCase();
-          output.innerText = 'Bereit, Sir. Sprich mit mir oder schreibe einen Befehl.';
-        } else if (data.error) {
-          status.innerText = 'KEY UNGÜLTIG';
-          output.innerText = 'Google-Fehler: ' + data.error.message;
-        }
-      } catch (e) {
-        status.innerText = 'VERBINDUNGSLÜCKE';
-        output.innerText = 'Konnte Google nicht erreichen: ' + e.message;
-      }
-    }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
@@ -129,7 +103,7 @@
     document.getElementById('micBtn').addEventListener('click', () => {
       if (!apiKey) return setApiKey();
       if (!recognition) {
-        alert('Spracheingabe wird im Browser blockiert. Bitte nutze das Textfeld unten!');
+        alert('Spracheingabe wird blockiert. Nutze das Textfeld!');
         return;
       }
       try { recognition.start(); } catch(e) { recognition.stop(); }
@@ -151,33 +125,44 @@
       status.innerText = 'VERARBEITE...';
 
       if (!apiKey) return setApiKey();
-      const modelToUse = detectedModel || 'models/gemini-2.0-flash';
-      const systemPrompt = "Du bist J.A.R.V.I.S., ein loyaler, hochintelligenter Assistent. Antworte auf Deutsch präzise und nenne mich Sir.";
 
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
-          })
-        });
+      const systemPrompt = "Du bist J.A.R.V.I.S., ein hochintelligenter, loyaler KI-Assistent. Antworte kurz, prägnant auf Deutsch und nenne mich gelegentlich Sir.";
 
-        const data = await response.json();
-        if (data.error) {
-          output.innerText = `Google-Fehler: ${data.error.message}`;
-          status.innerText = 'FEHLER';
-          return;
+      // Aktuelle offizielle Google-Modelle (2026)
+      const currentModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+      let successfulReply = null;
+      let lastErrMsg = '';
+
+      for (const m of currentModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
+            })
+          });
+
+          const data = await response.json();
+
+          if (data.candidates && data.candidates.length > 0) {
+            successfulReply = data.candidates[0].content.parts[0].text;
+            break;
+          } else if (data.error) {
+            lastErrMsg = data.error.message;
+          }
+        } catch (e) {
+          lastErrMsg = e.message;
         }
+      }
 
-        const reply = data.candidates[0].content.parts[0].text;
-        output.innerText = reply;
-        status.innerText = 'BEREIT';
-        speak(reply);
-
-      } catch (err) {
-        output.innerText = 'Fehler: ' + err.message;
+      if (successfulReply) {
+        output.innerText = successfulReply;
+        status.innerText = 'SYSTEM ONLINE // BEREIT';
+        speak(successfulReply);
+      } else {
+        output.innerText = 'Fehler: ' + lastErrMsg;
         status.innerText = 'FEHLER';
       }
     }
