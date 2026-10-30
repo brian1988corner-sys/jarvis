@@ -17,21 +17,21 @@
       justify-content: space-between; 
       min-height: 100vh;
       min-height: 100dvh; 
-      padding: 35px 20px calc(25px + env(safe-area-inset-bottom)); 
+      padding: 30px 20px calc(25px + env(safe-area-inset-bottom)); 
       overflow: hidden; 
     }
     .hud-header { text-align: center; }
     .hud-title { font-size: 26px; font-weight: 800; letter-spacing: 4px; text-shadow: 0 0 15px rgba(0,210,255,0.8); }
     .hud-status { font-size: 11px; letter-spacing: 2px; color: #00ff88; margin-top: 5px; }
-    .arc-reactor-container { position: relative; width: 190px; height: 190px; display: flex; align-items: center; justify-content: center; }
+    .arc-reactor-container { position: relative; width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; }
     .ring { position: absolute; border-radius: 50%; border: 2px dashed rgba(0,210,255,0.4); }
-    .ring-outer { width: 180px; height: 180px; animation: spin 20s linear infinite; }
-    .ring-inner { width: 135px; height: 135px; border-style: solid; border-color: rgba(0,210,255,0.2) transparent; animation: spin-rev 10s linear infinite; }
-    .core { width: 85px; height: 85px; border-radius: 50%; background: radial-gradient(circle, #00d2ff 0%, #030812 70%); box-shadow: 0 0 30px #00d2ff; display: flex; align-items: center; justify-content: center; }
+    .ring-outer { width: 175px; height: 175px; animation: spin 20s linear infinite; }
+    .ring-inner { width: 130px; height: 130px; border-style: solid; border-color: rgba(0,210,255,0.2) transparent; animation: spin-rev 10s linear infinite; }
+    .core { width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, #00d2ff 0%, #030812 70%); box-shadow: 0 0 30px #00d2ff; display: flex; align-items: center; justify-content: center; }
     .listening .core { animation: pulse 1s infinite alternate; background: radial-gradient(circle, #ff0055 0%, #030812 70%); box-shadow: 0 0 35px #ff0055; }
     .response-box { width: 100%; max-height: 140px; overflow-y: auto; background: rgba(0, 210, 255, 0.05); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 12px; padding: 12px; font-size: 14px; line-height: 1.4; color: #e0f7ff; text-align: center; }
     .controls { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
-    .btn-mic { width: 68px; height: 68px; border-radius: 50%; background: #001f3f; border: 2px solid #00d2ff; color: #00d2ff; font-size: 26px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(0,210,255,0.4); cursor: pointer; }
+    .btn-mic { width: 66px; height: 66px; border-radius: 50%; background: #001f3f; border: 2px solid #00d2ff; color: #00d2ff; font-size: 26px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(0,210,255,0.4); cursor: pointer; }
     .text-row { display: flex; width: 100%; gap: 8px; }
     .input-text { flex: 1; background: rgba(0,210,255,0.1); border: 1px solid rgba(0,210,255,0.3); border-radius: 8px; color: #fff; padding: 10px 12px; font-size: 15px; outline: none; }
     .btn-send { background: #00d2ff; border: none; border-radius: 8px; color: #030812; font-weight: bold; padding: 0 16px; font-size: 14px; cursor: pointer; }
@@ -44,7 +44,7 @@
 <body>
   <div class="hud-header">
     <div class="hud-title">J.A.R.V.I.S.</div>
-    <div class="hud-status" id="status">SYSTEM ONLINE // BEREIT</div>
+    <div class="hud-status" id="status">INITIALISIERE...</div>
   </div>
 
   <div class="arc-reactor-container" id="reactor">
@@ -53,7 +53,7 @@
     <div class="core"></div>
   </div>
 
-  <div class="response-box" id="output">System bereit. Sprich mit mir oder schreibe einen Befehl, Sir.</div>
+  <div class="response-box" id="output">Verbinde Gehirn mit Google...</div>
 
   <div class="controls">
     <button class="btn-mic" id="micBtn">🎙️</button>
@@ -66,17 +66,43 @@
 
   <script>
     let apiKey = (localStorage.getItem('gemini_api_key') || '').trim();
+    let detectedModel = null;
 
     function setApiKey() {
       const key = prompt('Bitte gib deinen Gemini API-Key ein:', apiKey);
       if (key !== null) {
         apiKey = key.trim();
         localStorage.setItem('gemini_api_key', apiKey);
-        alert('Key gespeichert!');
+        initBrain();
       }
     }
 
     if (!apiKey) setTimeout(setApiKey, 600);
+    else initBrain();
+
+    // Fragt Google direkt: Welche Modelle darf dieser Key nutzen?
+    async function initBrain() {
+      const status = document.getElementById('status');
+      const output = document.getElementById('output');
+      if (!apiKey) return;
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await res.json();
+        if (data.models && data.models.length > 0) {
+          const valid = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
+          const chosen = valid.find(m => m.name.includes('flash')) || valid[0];
+          detectedModel = chosen.name;
+          status.innerText = 'ONLINE // ' + detectedModel.replace('models/', '').toUpperCase();
+          output.innerText = 'Bereit, Sir. Sprich mit mir oder schreibe einen Befehl.';
+        } else if (data.error) {
+          status.innerText = 'KEY UNGÜLTIG';
+          output.innerText = 'Google-Fehler: ' + data.error.message;
+        }
+      } catch (e) {
+        status.innerText = 'VERBINDUNGSLÜCKE';
+        output.innerText = 'Konnte Google nicht erreichen: ' + e.message;
+      }
+    }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
@@ -125,45 +151,35 @@
       status.innerText = 'VERARBEITE...';
 
       if (!apiKey) return setApiKey();
+      const modelToUse = detectedModel || 'models/gemini-2.0-flash';
+      const systemPrompt = "Du bist J.A.R.V.I.S., ein loyaler, hochintelligenter Assistent. Antworte auf Deutsch präzise und nenne mich Sir.";
 
-      const systemPrompt = "Du bist J.A.R.V.I.S., ein hochintelligenter persönlicher KI-Assistent. Antworte immer auf Deutsch, professionell, prägnant und sprich den Nutzer gelegentlich mit Sir an.";
-      
-      // Auto-Erkennung: Wir testen die aktuellen Gemini-Modelle automatisch durch
-      const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
-      let lastError = null;
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
+          })
+        });
 
-      for (const model of candidateModels) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `${systemPrompt}\n\nNutzer: ${promptText}` }] }]
-            })
-          });
-
-          const data = await response.json();
-
-          if (data.error) {
-            lastError = data.error.message;
-            continue; // Probiere nächstes Modell
-          }
-
-          if (data.candidates && data.candidates.length > 0) {
-            const reply = data.candidates[0].content.parts[0].text;
-            output.innerText = reply;
-            status.innerText = 'SYSTEM ONLINE // BEREIT';
-            speak(reply);
-            return; // Erfolgreich geantwortet!
-          }
-        } catch (err) {
-          lastError = err.message;
+        const data = await response.json();
+        if (data.error) {
+          output.innerText = `Google-Fehler: ${data.error.message}`;
+          status.innerText = 'FEHLER';
+          return;
         }
-      }
 
-      output.innerText = 'Fehler: ' + (lastError || 'Keine Antwort erhalten.');
-      status.innerText = 'FEHLER';
+        const reply = data.candidates[0].content.parts[0].text;
+        output.innerText = reply;
+        status.innerText = 'BEREIT';
+        speak(reply);
+
+      } catch (err) {
+        output.innerText = 'Fehler: ' + err.message;
+        status.innerText = 'FEHLER';
+      }
     }
 
     function speak(text) {
